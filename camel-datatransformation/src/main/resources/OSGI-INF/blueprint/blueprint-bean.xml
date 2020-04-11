@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+    xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="          http://www.osgi.org/xmlns/blueprint/v1.0.0 https://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd          http://camel.apache.org/schema/blueprint http://camel.apache.org/schema/blueprint/camel-blueprint.xsd          http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.1.0 http://aries.apache.org/schemas/blueprint-cm/blueprint-cm-1.1.0.xsd">
+    <cm:property-placeholder persistent-id="HelloBean" update-strategy="reload">
+        <cm:default-properties>
+            <cm:property name="greeting" value="Hi from Camel"/>
+        </cm:default-properties>
+    </cm:property-placeholder>
+    <bean class="tutor.camel.datatrans.HelloBean" id="helloBean">
+        <property name="say" value="${greeting}"/>
+    </bean>
+    <camelContext id="blueprint-bean-context" xmlns="http://camel.apache.org/schema/blueprint">
+        <endpoint id="jsontoxml" uri="dozer:jsontoxml?sourceModel=generated_1560948409608.Item&amp;targetModel=generated_1566553650052.Item&amp;marshalId=generated_1566553650052&amp;mappingFile=transformation.xml"/>
+        <endpoint id="xmltojson" uri="dozer:xmltojson?sourceModel=generated_1560948409608.Item&amp;targetModel=jsoneg.Jsoneg&amp;marshalId=transform-json&amp;unmarshalId=generated_1560948409608&amp;mappingFile=transformationxmltojson.xml"/>
+        <dataFormats>
+            <jaxb contextPath="generated_1560948409608" id="generated_1560948409608"/>
+            <json id="transform-json" library="Jackson"/>
+            <jaxb contextPath="generated_1566553650052" id="generated_1566553650052"/>
+        </dataFormats>
+        <route id="xmltojsontransformation">
+            <from id="_from1" uri="jetty:http://localhost:8086/uploadxml"/>
+            <to id="_to2" uri="ref:xmltojson"/>
+            <to id="_to3" uri="ref:jsontoxml"/>
+            <log id="_log1" message="The message contains ${body}"/>
+            <to id="_to1" uri="mock:result"/>
+        </route>
+    </camelContext>
+</blueprint>
