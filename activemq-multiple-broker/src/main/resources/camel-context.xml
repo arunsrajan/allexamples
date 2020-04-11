@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Configures the Camel Context -->
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+    <bean class="org.apache.camel.builder.DeadLetterChannelBuilder" id="myDeadLetterErrorHandler">
+        <property name="deadLetterUri" value="direct:error"/>
+        <property name="redeliveryPolicy" ref="myRedeliveryPolicyConfig"/>
+    </bean>
+    <bean class="org.apache.camel.processor.RedeliveryPolicy" id="myRedeliveryPolicyConfig">
+        <property name="maximumRedeliveries" value="3"/>
+        <property name="redeliveryDelay" value="5000"/>
+    </bean>
+    <bean
+        class="org.apache.activemq.artemis.api.core.TransportConfiguration" id="server1">
+        <constructor-arg value="org.apache.activemq.artemis.core.remoting.impl.netty.NettyConnectorFactory"/>
+        <constructor-arg>
+            <map>
+                <entry key="host" value="localhost"/>
+                <entry key="port" value="61616"/>
+            </map>
+        </constructor-arg>
+    </bean>
+    <bean
+        class="org.apache.activemq.artemis.api.core.TransportConfiguration" id="server2">
+        <constructor-arg value="org.apache.activemq.artemis.core.remoting.impl.netty.NettyConnectorFactory"/>
+        <constructor-arg>
+            <map>
+                <entry key="host" value="localhost"/>
+                <entry key="port" value="61617"/>
+            </map>
+        </constructor-arg>
+    </bean>
+    <bean class="org.apache.activemq.artemis.api.jms.JMSFactoryType"
+        factory-method="valueOf" id="factoryType">
+        <constructor-arg type="int">
+            <value>0</value>
+        </constructor-arg>
+    </bean>
+    <bean class="org.apache.activemq.artemis.api.jms.ActiveMQJMSClient"
+        factory-method="createConnectionFactoryWithHA" id="amqConnectionFactory">
+        <constructor-arg name="jmsFactoryType" ref="factoryType"/>
+        <constructor-arg>
+            <list>
+                <ref bean="server1"/>
+                <ref bean="server2"/>
+            </list>
+        </constructor-arg>
+        <property name="user" value="admin"/>
+        <property name="password" value="admin"/>
+    </bean>
+    <bean class="org.apache.activemq.pool.PooledConnectionFactory" id="pooledConnectionFactory">
+        <property name="maxConnections" value="8"/>
+        <property name="connectionFactory" ref="amqConnectionFactory"/>
+        <property name="idleTimeout" value="86400000"/>
+    </bean>
+    <bean class="org.apache.activemq.camel.component.ActiveMQComponent" id="activemq">
+        <property name="connectionFactory" ref="pooledConnectionFactory"/>
+    </bean>
+    <camelContext id="camelContext-d014a3ae-b052-4b65-9473-a9c5a707311f" xmlns="http://camel.apache.org/schema/spring">
+        <route id="_route1">
+            <description>Example Camel Route</description>
+            <from id="_from1" uri="activemq:TEST.QUEUE"/>
+            <choice id="_choice1">
+                <when id="_when1">
+                    <jsonpath>$.store.book[?(@.price &lt; 10)]</jsonpath>
+                    <log id="_log1" message="${body}"/>
+                    <to id="_to1" uri="activemq:TEST.QUEUE1"/>
+                </when>
+                <otherwise id="_otherwise1">
+                    <to id="_to1" uri="activemq:TEST.QUEUE2"/>
+                </otherwise>
+            </choice>
+            <log id="_log2" message="${body}"/>
+        </route>
+    </camelContext>
+</beans>
